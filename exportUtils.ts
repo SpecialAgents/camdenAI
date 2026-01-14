@@ -109,11 +109,11 @@ export const exportDocumentationToPDF = () => {
   doc.text('Camden Intelligence: User Documentation', 14, 22);
 
   const sections = [
-    { title: '1. Tech Stack', content: 'Language: TypeScript\nFrontend: React 19\nStyling: Tailwind CSS\nAI Engine: Google Gemini 3 Flash\nVisualization: Recharts\nExporting: jsPDF & AutoTable' },
-    { title: '2. API Selection Justification', content: 'We selected the Google Gemini API (gemini-3-flash-preview) as our primary NLP engine. Gemini offers a generative approach that provides not just a label, but a reasoned explanation and keyword extraction in a single low-latency call.' },
-    { title: '3. Implementation Challenges', content: '- JSON Parsing Stability: Ensuring the AI always returns valid JSON.\n- PDF Exporting: Generating multi-page PDF reports in the client-side environment.\n- Batch Processing Latency: Balancing user experience while processing multiple texts.' },
-    { title: '4. User Guide', content: 'Step 1: Input Data - Type a sentence or upload a CSV/TXT file.\nStep 2: Analyze - Click Initialize Analysis to classify sentiment.\nStep 3: Explore Visuals - Check charts for emotional health stats.\nStep 4: Export - Save results as CSV, JSON, or PDF.' },
-    { title: '5. Model Limitations', content: 'Confidence Threshold: Flag scores below 0.65 for manual review. Optimal text length: 10-500 words. Language support is prioritized for English with multi-lingual capabilities.' }
+    { title: '1. Tech Stack', content: 'Language: TypeScript\nFrontend: React 19\nStyling: Tailwind CSS\nAI Engine: Gemini 3 Flash & 2.5 Live\nReal-time: PCM Audio Transcription\nVisuals: Reactive 3D Emojis\nExporting: jsPDF & AutoTable' },
+    { title: '2. Intelligence Justification', content: 'We leverage the Gemini 2.5 Live API for instantaneous voice transcription and Gemini 3 Flash for deep sentiment decryption. This multimodal approach allows Camden to resolve complex emotional signals from both textual and acoustic inputs.' },
+    { title: '3. Core Features', content: 'Voice Intelligence: Real-time audio signal capture with live transcription.\n3D Reactive Interface: Floating emojis that shift animations based on latest analysis.\nBatch Matrix: High-speed processing of up to 50 intelligence nodes.\nAccuracy Tracking: Integrated validation tools and confusion matrices.' },
+    { title: '4. User Guide', content: 'Step 1: Data Injection - Paste text, upload files, or record voice.\nStep 2: Real-time Transcription - Monitor live streams in the voice console.\nStep 3: Resolve Signals - Initialize the AI to classify sentiment vectors.\nStep 4: Insights & Exports - Analyze charts and save data to CSV, JSON, or PDF.' },
+    { title: '5. Architecture Thresholds', content: 'Latency Optimization: PCM 16kHz audio streaming for real-time fidelity. Optimal Text Length: 10-500 words. Confidence Threshold: scores below 0.65 are flagged for manual verification.' }
   ];
 
   let yOffset = 35;
