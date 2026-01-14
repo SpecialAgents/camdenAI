@@ -2,114 +2,96 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { Sentiment, SentimentResult } from "./types";
 
-/**
- * Creates a fresh instance of the AI client.
- * This ensures the latest API key from the environment is utilized.
- */
 const getAIClient = () => new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
 
-export const analyzeSentiment = async (text: string): Promise<SentimentResult> => {
-  const ai = getAIClient();
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Analyze the following text and extract sentiment details: "${text}"`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.OBJECT,
-        properties: {
-          sentiment: {
-            type: Type.STRING,
-            enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
-            description: "Classification of text sentiment."
-          },
-          confidence: {
-            type: Type.NUMBER,
-            description: "Score from 0 to 1 indicating model certainty."
-          },
-          keywords: {
-            type: Type.ARRAY,
-            items: { type: Type.STRING },
-            description: "Specific terms indicating the sentiment."
-          },
-          explanation: {
-            type: Type.STRING,
-            description: "Reasoning for the classification."
-          }
-        },
-        required: ["sentiment", "confidence", "keywords", "explanation"]
-      }
+/**
+ * Helper to handle rate limits (429) with simple exponential backoff.
+ */
+async function callWithRetry<T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> {
+  try {
+    return await fn();
+  } catch (error: any) {
+    const isRateLimit = error?.message?.includes('429') || error?.status === 429 || error?.message?.includes('quota');
+    if (isRateLimit && retries > 0) {
+      console.warn(`Rate limit hit. Retrying in ${delay}ms... (${retries} retries left)`);
+      await new Promise(resolve => setTimeout(resolve, delay));
+      return callWithRetry(fn, retries - 1, delay * 2);
     }
-  });
+    throw error;
+  }
+}
 
-  const rawJson = JSON.parse(response.text || '{}');
-  return {
-    id: Math.random().toString(36).substring(7),
-    text,
-    sentiment: (rawJson.sentiment || 'NEUTRAL') as Sentiment,
-    confidence: rawJson.confidence || 0,
-    keywords: rawJson.keywords || [],
-    explanation: rawJson.explanation || "No explanation provided."
-  };
-};
-
-export const batchAnalyzeSentiment = async (texts: string[]): Promise<SentimentResult[]> => {
-  const ai = getAIClient();
-  // Filter out empty lines to save tokens and avoid empty analysis
-  const filteredTexts = texts.filter(t => t.trim().length > 0);
-  
-  if (filteredTexts.length === 0) return [];
-
-  const response = await ai.models.generateContent({
-    model: "gemini-3-flash-preview",
-    contents: `Perform sentiment analysis on the following ${filteredTexts.length} distinct entries. Return an array of analysis objects corresponding to each entry.
-    
-    Inputs:
-    ${filteredTexts.map((t, i) => `Entry ${i + 1}: ${t}`).join('\n')}`,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: {
-        type: Type.ARRAY,
-        items: {
+export const analyzeSentiment = async (text: string): Promise<SentimentResult> => {
+  return callWithRetry(async () => {
+    const ai = getAIClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Sentiment analysis for: "${text}"`,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 }, // Optimization: Disable thinking for simple tasks
+        responseMimeType: "application/json",
+        responseSchema: {
           type: Type.OBJECT,
           properties: {
-            sentiment: {
-              type: Type.STRING,
-              enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL'],
-              description: "The identified sentiment vector."
-            },
-            confidence: {
-              type: Type.NUMBER,
-              description: "Fidelity score (0-1)."
-            },
-            keywords: {
-              type: Type.ARRAY,
-              items: { type: Type.STRING },
-              description: "Key linguistic drivers."
-            },
-            explanation: {
-              type: Type.STRING,
-              description: "Deep reasoning for classification."
-            }
+            sentiment: { type: Type.STRING, enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL'] },
+            confidence: { type: Type.NUMBER },
+            keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+            explanation: { type: Type.STRING }
           },
           required: ["sentiment", "confidence", "keywords", "explanation"]
         }
       }
-    }
-  });
+    });
 
-  try {
+    const rawJson = JSON.parse(response.text || '{}');
+    return {
+      id: Math.random().toString(36).substring(7),
+      text,
+      sentiment: (rawJson.sentiment || 'NEUTRAL') as Sentiment,
+      confidence: rawJson.confidence || 0,
+      keywords: rawJson.keywords || [],
+      explanation: rawJson.explanation || "Analyzed."
+    };
+  });
+};
+
+export const batchAnalyzeSentiment = async (texts: string[]): Promise<SentimentResult[]> => {
+  const filteredTexts = texts.filter(t => t.trim().length > 0);
+  if (filteredTexts.length === 0) return [];
+
+  return callWithRetry(async () => {
+    const ai = getAIClient();
+    const response = await ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Analyze sentiment for these ${filteredTexts.length} inputs. Return an array:
+      ${filteredTexts.map((t, i) => `${i}: ${t}`).join('\n')}`,
+      config: {
+        thinkingConfig: { thinkingBudget: 0 },
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.ARRAY,
+          items: {
+            type: Type.OBJECT,
+            properties: {
+              sentiment: { type: Type.STRING, enum: ['POSITIVE', 'NEGATIVE', 'NEUTRAL'] },
+              confidence: { type: Type.NUMBER },
+              keywords: { type: Type.ARRAY, items: { type: Type.STRING } },
+              explanation: { type: Type.STRING }
+            },
+            required: ["sentiment", "confidence", "keywords", "explanation"]
+          }
+        }
+      }
+    });
+
     const rawResults = JSON.parse(response.text || '[]');
     return rawResults.map((res: any, index: number) => ({
       id: Math.random().toString(36).substring(7),
-      text: filteredTexts[index] || "Unknown source",
+      text: filteredTexts[index] || "Unknown",
       sentiment: (res.sentiment || 'NEUTRAL') as Sentiment,
       confidence: res.confidence || 0,
       keywords: res.keywords || [],
-      explanation: res.explanation || "No explanation provided."
+      explanation: res.explanation || "Batch analyzed."
     }));
-  } catch (e) {
-    console.error("Failed to parse batch JSON response", e);
-    throw new Error("Invalid response format from AI. Please try again with a smaller batch.");
-  }
+  });
 };
