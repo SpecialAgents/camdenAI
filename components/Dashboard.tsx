@@ -19,6 +19,7 @@ const COLORS = {
 const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
   const [inputText, setInputText] = useState('');
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [retryStatus, setRetryStatus] = useState<string | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [activeTab, setActiveTab] = useState<'individual' | 'batch'>('individual');
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -31,13 +32,16 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
     }
 
     setIsAnalyzing(true);
+    setRetryStatus(null);
     try {
-      // LOOSENED LIMIT: Supporting up to 50 entries in a single optimized API call
       const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50)); 
       setResults(prev => [...batchResults, ...prev]);
     } catch (error: any) {
-      console.error(error);
-      alert(`Analysis failure: ${error.message || "Unknown API error. Please verify your connection."}`);
+      const isQuota = error?.message?.includes('429') || error?.message?.includes('quota');
+      alert(isQuota 
+        ? "Google API Quota Limit Reached. Please wait a minute before trying again." 
+        : `Analysis failure: ${error.message || "Check your API key and connection."}`
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -45,13 +49,12 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
 
   const handleSingleAnalysis = async () => {
     if (!inputText.trim()) return;
-    
     const lines = inputText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
     setIsAnalyzing(true);
+    setRetryStatus(null);
     try {
       if (lines.length > 1) {
-        // Automatically handle multiple lines even in direct entry
         const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50));
         setResults(prev => [...batchResults, ...prev]);
       } else {
@@ -60,7 +63,11 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
       }
       setInputText('');
     } catch (error: any) {
-      alert(`Analysis failure: ${error.message || "Failed to analyze. Please check your API key and input format."}`);
+      const isQuota = error?.message?.includes('429') || error?.message?.includes('quota');
+      alert(isQuota 
+        ? "Google API Quota Limit Reached. This usually resets every minute." 
+        : `Analysis failure: ${error.message || "Failed to analyze."}`
+      );
     } finally {
       setIsAnalyzing(false);
     }
@@ -119,7 +126,12 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
           <h2 className="text-4xl font-black text-[#728156] animate-pulse-text tracking-tighter">
             Camden Intelligence
           </h2>
-          <p className="mt-4 text-[#88976C] font-semibold uppercase tracking-widest text-sm">Deciphering Matrix...</p>
+          <p className="mt-4 text-[#88976C] font-semibold uppercase tracking-widest text-sm">
+            {retryStatus || "Deciphering Matrix..."}
+          </p>
+          <p className="mt-2 text-[10px] text-[#728156]/60 font-medium px-8 text-center max-w-sm">
+            Please remain on this screen. We are managing API quota limits for optimal fidelity.
+          </p>
         </div>
       )}
 
