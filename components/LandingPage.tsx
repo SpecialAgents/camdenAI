@@ -46,7 +46,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ onEnter, onThemeToggle, isDar
             Launch Console
           </button>
           <a 
-            href="https://github.com" 
+            href="https://github.com/SpecialAgents/camdenAI" 
             target="_blank" 
             rel="noopener noreferrer"
             className="w-full sm:w-auto px-8 md:px-10 py-3.5 md:py-4 bg-white/40 dark:bg-black/40 hover:bg-white/60 dark:hover:bg-black/60 border border-white/40 dark:border-white/10 text-gray-900 dark:text-gray-100 rounded-full font-bold text-base md:text-lg backdrop-blur-md transition-all"
