@@ -24,20 +24,20 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const processTextBatch = async (text: string) => {
-    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 5);
+    const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
     if (lines.length === 0) {
-      alert("No valid text found in file.");
+      alert("No valid text found in source.");
       return;
     }
 
     setIsAnalyzing(true);
     try {
-      const batchResults = await batchAnalyzeSentiment(lines.slice(0, 15)); // Increased slightly for batch
+      // LOOSENED LIMIT: Supporting up to 50 entries in a single optimized API call
+      const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50)); 
       setResults(prev => [...batchResults, ...prev]);
-      setActiveTab('batch');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
-      alert("Batch processing failed. Check connection or API keys.");
+      alert(`Analysis failure: ${error.message || "Unknown API error. Please verify your connection."}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -45,13 +45,22 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
 
   const handleSingleAnalysis = async () => {
     if (!inputText.trim()) return;
+    
+    const lines = inputText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    
     setIsAnalyzing(true);
     try {
-      const result = await analyzeSentiment(inputText);
-      setResults(prev => [result, ...prev]);
+      if (lines.length > 1) {
+        // Automatically handle multiple lines even in direct entry
+        const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50));
+        setResults(prev => [...batchResults, ...prev]);
+      } else {
+        const result = await analyzeSentiment(inputText);
+        setResults(prev => [result, ...prev]);
+      }
       setInputText('');
-    } catch (error) {
-      alert("Failed to analyze sentiment. Please check your API key.");
+    } catch (error: any) {
+      alert(`Analysis failure: ${error.message || "Failed to analyze. Please check your API key and input format."}`);
     } finally {
       setIsAnalyzing(false);
     }
@@ -63,6 +72,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
     reader.onload = async (event) => {
       const text = event.target?.result as string;
       await processTextBatch(text);
+      setActiveTab('batch');
     };
     reader.readAsText(file);
   };
@@ -88,6 +98,12 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
     if (file) handleFile(file);
   };
 
+  const clearResults = () => {
+    if (window.confirm("Are you sure you want to clear all analysis data?")) {
+      setResults([]);
+    }
+  };
+
   const sentimentData = [
     { name: 'Positive', value: results.filter(r => r.sentiment === Sentiment.POSITIVE).length },
     { name: 'Neutral', value: results.filter(r => r.sentiment === Sentiment.NEUTRAL).length },
@@ -103,7 +119,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
           <h2 className="text-4xl font-black text-[#728156] animate-pulse-text tracking-tighter">
             Camden Intelligence
           </h2>
-          <p className="mt-4 text-[#88976C] font-semibold uppercase tracking-widest text-sm">Analyzing Emotional Matrix...</p>
+          <p className="mt-4 text-[#88976C] font-semibold uppercase tracking-widest text-sm">Deciphering Matrix...</p>
         </div>
       )}
 
@@ -133,7 +149,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
               <div className="space-y-4">
                 <textarea 
                   className="w-full h-44 p-5 rounded-2xl border-2 border-[#E8F4DC] focus:border-[#B6C99C] focus:ring-4 focus:ring-[#E8F4DC]/50 outline-none transition-all resize-none text-gray-700 leading-relaxed font-medium"
-                  placeholder="Paste intelligence source here..."
+                  placeholder="Paste multi-line text source here (each line processed independently)..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                 />
@@ -161,7 +177,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
                   <p className="font-bold text-[#728156]">
                     {isDragging ? 'Drop Intelligence File Now' : 'Drag Intelligence Source File'}
                   </p>
-                  <p className="text-xs text-[#88976C] mt-1">Supports .csv, .txt (Limit 15 entries for processing speed)</p>
+                  <p className="text-xs text-[#88976C] mt-1">Supports .csv, .txt (Limit 50 nodes per injection)</p>
                 </div>
                 <input 
                   type="file" 
@@ -186,7 +202,6 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
           <div className="bg-white p-8 rounded-3xl shadow-sm border border-[#B6C99C]/20 h-full flex flex-col justify-between">
             <h3 className="text-xl font-bold text-[#728156] mb-4">Matrix Stats</h3>
             
-            {/* Latest Vector Row */}
             {results.length > 0 && (
               <div className="mb-4 p-4 bg-[#CFE1BB]/10 rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2">
                 <p className="text-[10px] font-black text-[#88976C] uppercase tracking-widest mb-1">Latest Vector</p>
@@ -217,8 +232,24 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
               </div>
             </div>
             <div className="mt-6 pt-6 border-t border-[#E8F4DC] flex flex-col gap-2">
-              <p className="text-[10px] font-black text-[#98A77C] uppercase tracking-[0.2em] mb-2">Security Export</p>
-              <div className="grid grid-cols-3 gap-2">
+              <p className="text-[10px] font-black text-[#98A77C] uppercase tracking-[0.2em] mb-2">Operations</p>
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button 
+                  onClick={clearResults}
+                  disabled={results.length === 0}
+                  className="px-2 py-2.5 bg-red-50 hover:bg-red-100 rounded-xl text-xs font-bold text-red-600 disabled:opacity-50 transition-colors"
+                >
+                  Clear All
+                </button>
+                <button 
+                  onClick={() => exportToPDF(results)}
+                  disabled={results.length === 0}
+                  className="px-2 py-2.5 bg-[#B6C99C] hover:bg-[#98A77C] rounded-xl text-xs font-bold text-white disabled:opacity-50 transition-colors shadow-sm"
+                >
+                  Export PDF
+                </button>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
                 <button 
                   onClick={() => exportToJSON(results)}
                   disabled={results.length === 0}
@@ -232,13 +263,6 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults }) => {
                   className="px-2 py-2.5 bg-[#E8F4DC] hover:bg-[#CFE1BB] rounded-xl text-xs font-bold text-[#728156] disabled:opacity-50 transition-colors"
                 >
                   CSV
-                </button>
-                <button 
-                  onClick={() => exportToPDF(results)}
-                  disabled={results.length === 0}
-                  className="px-2 py-2.5 bg-[#B6C99C] hover:bg-[#98A77C] rounded-xl text-xs font-bold text-white disabled:opacity-50 transition-colors shadow-sm"
-                >
-                  PDF
                 </button>
               </div>
             </div>
