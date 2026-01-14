@@ -218,26 +218,25 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
   };
 
   const processTextBatch = async (text: string) => {
-    if (creditsRemaining <= 0) return;
+    if (creditsRemaining < 2) {
+      showNotification("Insufficient credits for batch analysis. 2 units required.", 'error');
+      return;
+    }
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
     if (lines.length === 0) {
       showNotification("No valid text found in source file.", 'error');
       return;
     }
 
-    const countToAnalyze = Math.min(lines.length, creditsRemaining, 50);
-    if (countToAnalyze === 0) {
-      showNotification("Credit limit reached for this session.", 'error');
-      return;
-    }
+    const countToAnalyze = Math.min(lines.length, 50);
 
     setIsAnalyzing(true);
     setRetryStatus(null);
     try {
       const batchResults = await batchAnalyzeSentiment(lines.slice(0, countToAnalyze)); 
       setResults(prev => [...batchResults, ...prev]);
-      setCreditsRemaining(prev => Math.max(0, prev - batchResults.length));
-      showNotification(`Batch processed: ${batchResults.length} vectors resolved.`, 'success');
+      setCreditsRemaining(prev => Math.max(0, prev - 2));
+      showNotification(`Batch processed: ${batchResults.length} vectors resolved (Cost: 2 credits).`, 'success');
     } catch (error: any) {
       const isQuota = error?.message?.includes('429') || error?.message?.includes('quota');
       showNotification(isQuota 
@@ -253,25 +252,27 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
     if (!inputText.trim() || creditsRemaining <= 0) return;
     const lines = inputText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
-    const countToAnalyze = lines.length > 1 ? lines.length : 1;
-    if (countToAnalyze > creditsRemaining) {
-      showNotification(`Insufficient credits. Only ${creditsRemaining} units remaining.`, 'error');
+    const isBatch = lines.length > 1;
+    const creditCost = isBatch ? 2 : 1;
+
+    if (creditsRemaining < creditCost) {
+      showNotification(`Insufficient credits. This operation requires ${creditCost} units.`, 'error');
       return;
     }
 
     setIsAnalyzing(true);
     setRetryStatus(null);
     try {
-      if (lines.length > 1) {
-        const batchResults = await batchAnalyzeSentiment(lines.slice(0, Math.min(countToAnalyze, 50)));
+      if (isBatch) {
+        const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50));
         setResults(prev => [...batchResults, ...prev]);
-        setCreditsRemaining(prev => Math.max(0, prev - batchResults.length));
-        showNotification(`Batch of ${batchResults.length} items analyzed.`, 'success');
+        setCreditsRemaining(prev => Math.max(0, prev - 2));
+        showNotification(`Batch of ${batchResults.length} items analyzed (Cost: 2 credits).`, 'success');
       } else {
         const result = await analyzeSentiment(inputText);
         setResults(prev => [result, ...prev]);
         setCreditsRemaining(prev => Math.max(0, prev - 1));
-        showNotification("Intelligence node resolved.", 'success');
+        showNotification("Intelligence node resolved (Cost: 1 credit).", 'success');
       }
       setInputText('');
     } catch (error: any) {
@@ -460,7 +461,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                       <p className="font-bold text-sm md:text-base text-[#728156] dark:text-[#B6C99C]">
                         {isDragging ? 'Drop File Now' : 'Drag Source File'}
                       </p>
-                      <p className="text-[10px] md:text-xs text-[#88976C] dark:text-[#B6C99C]/60 mt-1">Supports .csv, .txt (Limit: {creditsRemaining} nodes)</p>
+                      <p className="text-[10px] md:text-xs text-[#88976C] dark:text-[#B6C99C]/60 mt-1">Supports .csv, .txt (Batch cost: 2 credits)</p>
                     </div>
                     <input 
                       type="file" 
