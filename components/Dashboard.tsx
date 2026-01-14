@@ -42,7 +42,6 @@ const AFFIRMATIONS = {
   ]
 };
 
-// Helper functions for PCM encoding (Live API Requirements)
 function encode(bytes: Uint8Array) {
   let binary = '';
   const len = bytes.byteLength;
@@ -98,7 +97,6 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
       const chunks: Blob[] = [];
       setLiveTranscript('');
 
-      // Setup Live Transcription Session
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY || '' });
       const sessionPromise = ai.live.connect({
         model: 'gemini-2.5-flash-native-audio-preview-12-2025',
@@ -117,7 +115,6 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
         },
       });
 
-      // Setup PCM Streaming for Live API
       const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)({ sampleRate: 16000 });
       audioContextRef.current = audioContext;
       const source = audioContext.createMediaStreamSource(stream);
@@ -135,7 +132,6 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
       source.connect(scriptProcessor);
       scriptProcessor.connect(audioContext.destination);
 
-      // Traditional MediaRecorder for Final Analysis
       recorder.ondataavailable = (e) => chunks.push(e.data);
       recorder.onstop = async () => {
         const blob = new Blob(chunks, { type: recorder.mimeType || 'audio/webm' });
@@ -158,7 +154,6 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       
-      // Cleanup Audio Processing Nodes
       if (audioContextRef.current) {
         audioContextRef.current.close();
         audioContextRef.current = null;
@@ -290,50 +285,48 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
     if (results.length === 0) return null;
     const sentiment = results[0].sentiment;
     const options = AFFIRMATIONS[sentiment];
-    // Use the ID to keep the affirmation stable for a specific result
     const index = results[0].id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0) % options.length;
     return options[index];
   }, [results]);
 
   return (
-    <div className="p-6 md:p-10 max-w-7xl mx-auto space-y-10 animate-in slide-in-from-bottom duration-500 relative transition-colors">
-      {/* Analysis Loader Overlay */}
+    <div className="px-4 py-6 md:p-10 max-w-7xl mx-auto space-y-8 md:space-y-10 animate-in slide-in-from-bottom duration-500 relative transition-colors">
       {isAnalyzing && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#E8F4DC]/80 dark:bg-[#1A1C18]/80 backdrop-blur-md transition-all animate-in fade-in">
-          <div className="w-24 h-24 border-4 border-[#CFE1BB] border-t-[#728156] rounded-full animate-spin mb-6"></div>
-          <h2 className="text-4xl font-black text-[#728156] dark:text-[#B6C99C] animate-pulse-text tracking-tighter">
+          <div className="w-16 h-16 md:w-24 md:h-24 border-4 border-[#CFE1BB] border-t-[#728156] rounded-full animate-spin mb-6"></div>
+          <h2 className="text-2xl md:text-4xl font-black text-[#728156] dark:text-[#B6C99C] animate-pulse-text tracking-tighter">
             Camden Intelligence
           </h2>
-          <p className="mt-4 text-[#88976C] dark:text-[#B6C99C]/60 font-semibold uppercase tracking-widest text-sm">
+          <p className="mt-4 text-[#88976C] dark:text-[#B6C99C]/60 font-semibold uppercase tracking-widest text-xs md:text-sm">
             {retryStatus || "Deciphering Matrix..."}
           </p>
         </div>
       )}
 
       {/* Input Section */}
-      <section className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
         <div className="lg:col-span-2 space-y-6">
-          <div className="bg-white dark:bg-[#2A2D26] p-8 rounded-3xl shadow-sm border border-[#B6C99C]/20 flex flex-col gap-4 transition-colors">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-[#728156] dark:text-[#B6C99C]">Intelligence Console</h2>
-              <div className="flex bg-[#E8F4DC] dark:bg-[#1A1C18] p-1 rounded-xl transition-colors">
+          <div className="bg-white dark:bg-[#2A2D26] p-5 md:p-8 rounded-2xl md:rounded-3xl shadow-sm border border-[#B6C99C]/20 flex flex-col gap-4 transition-colors">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-xl md:text-2xl font-bold text-[#728156] dark:text-[#B6C99C]">Intelligence Console</h2>
+              <div className="flex w-full sm:w-auto bg-[#E8F4DC] dark:bg-[#1A1C18] p-1 rounded-xl transition-colors">
                 <button 
                   onClick={() => setActiveTab('individual')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'individual' ? 'bg-white dark:bg-[#2A2D26] shadow-sm text-[#728156] dark:text-[#B6C99C]' : 'text-[#88976C]'}`}
+                  className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${activeTab === 'individual' ? 'bg-white dark:bg-[#2A2D26] shadow-sm text-[#728156] dark:text-[#B6C99C]' : 'text-[#88976C]'}`}
                 >
-                  Direct Entry
+                  Text
                 </button>
                 <button 
                   onClick={() => setActiveTab('batch')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'batch' ? 'bg-white dark:bg-[#2A2D26] shadow-sm text-[#728156] dark:text-[#B6C99C]' : 'text-[#88976C]'}`}
+                  className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${activeTab === 'batch' ? 'bg-white dark:bg-[#2A2D26] shadow-sm text-[#728156] dark:text-[#B6C99C]' : 'text-[#88976C]'}`}
                 >
-                  Batch Matrix
+                  Batch
                 </button>
                 <button 
                   onClick={() => setActiveTab('voice')}
-                  className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === 'voice' ? 'bg-white dark:bg-[#2A2D26] shadow-sm text-[#728156] dark:text-[#B6C99C]' : 'text-[#88976C]'}`}
+                  className={`flex-1 sm:flex-none px-3 md:px-4 py-1.5 rounded-lg text-xs md:text-sm font-semibold transition-all ${activeTab === 'voice' ? 'bg-white dark:bg-[#2A2D26] shadow-sm text-[#728156] dark:text-[#B6C99C]' : 'text-[#88976C]'}`}
                 >
-                  Voice Input
+                  Voice
                 </button>
               </div>
             </div>
@@ -341,7 +334,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
             {activeTab === 'individual' && (
               <div className="space-y-4">
                 <textarea 
-                  className="w-full h-44 p-5 rounded-2xl border-2 border-[#E8F4DC] dark:border-[#3A3D36] bg-transparent focus:border-[#B6C99C] outline-none transition-all resize-none text-gray-700 dark:text-gray-100 leading-relaxed font-medium"
+                  className="w-full h-32 md:h-44 p-4 md:p-5 rounded-xl md:rounded-2xl border-2 border-[#E8F4DC] dark:border-[#3A3D36] bg-transparent focus:border-[#B6C99C] outline-none transition-all resize-none text-gray-700 dark:text-gray-100 leading-relaxed font-medium text-sm md:text-base"
                   placeholder="Paste multi-line text source here..."
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
@@ -349,7 +342,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                 <button 
                   onClick={handleSingleAnalysis}
                   disabled={isAnalyzing || !inputText.trim()}
-                  className="w-full py-4 bg-[#728156] dark:bg-[#B6C99C] hover:bg-[#88976C] dark:hover:bg-[#CFE1BB] disabled:bg-[#B6C99C] dark:disabled:bg-[#3A3D36] text-white dark:text-[#1A1C18] rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.99]"
+                  className="w-full py-3 md:py-4 bg-[#728156] dark:bg-[#B6C99C] hover:bg-[#88976C] dark:hover:bg-[#CFE1BB] disabled:bg-[#B6C99C] dark:disabled:bg-[#3A3D36] text-white dark:text-[#1A1C18] rounded-xl md:rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] text-sm md:text-base"
                 >
                   Initialize Analysis
                 </button>
@@ -358,21 +351,21 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
 
             {activeTab === 'batch' && (
               <div 
-                className={`h-44 border-2 border-dashed rounded-3xl flex flex-col items-center justify-center gap-4 transition-all ${
+                className={`h-44 md:h-52 border-2 border-dashed rounded-2xl md:rounded-3xl flex flex-col items-center justify-center gap-4 transition-all p-4 ${
                   isDragging ? 'border-[#728156] bg-[#CFE1BB]/20' : 'border-[#B6C99C] dark:border-[#3A3D36] bg-[#E8F4DC]/10 dark:bg-[#1A1C18]/30'
                 }`}
                 onDragOver={onDragOver}
                 onDragLeave={onDragLeave}
                 onDrop={onDrop}
               >
-                <div className="w-14 h-14 bg-white dark:bg-[#3A3D36] rounded-full shadow-sm flex items-center justify-center text-[#728156] dark:text-[#B6C99C] transition-colors">
-                  <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-white dark:bg-[#3A3D36] rounded-full shadow-sm flex items-center justify-center text-[#728156] dark:text-[#B6C99C] transition-colors">
+                  <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
                 </div>
                 <div className="text-center">
-                  <p className="font-bold text-[#728156] dark:text-[#B6C99C]">
-                    {isDragging ? 'Drop Intelligence File Now' : 'Drag Intelligence Source File'}
+                  <p className="font-bold text-sm md:text-base text-[#728156] dark:text-[#B6C99C]">
+                    {isDragging ? 'Drop File Now' : 'Drag Source File'}
                   </p>
-                  <p className="text-xs text-[#88976C] dark:text-[#B6C99C]/60 mt-1">Supports .csv, .txt (Max 50 nodes)</p>
+                  <p className="text-[10px] md:text-xs text-[#88976C] dark:text-[#B6C99C]/60 mt-1">Supports .csv, .txt (Max 50 nodes)</p>
                 </div>
                 <input 
                   type="file" 
@@ -384,7 +377,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                 />
                 <label 
                   htmlFor="batch-upload" 
-                  className="px-8 py-2.5 bg-white dark:bg-[#1A1C18] border border-[#B6C99C] rounded-xl text-sm font-bold text-[#728156] dark:text-[#B6C99C] cursor-pointer hover:bg-[#E8F4DC] dark:hover:bg-[#3A3D36] transition-all shadow-sm hover:shadow-md"
+                  className="px-6 md:px-8 py-2 md:py-2.5 bg-white dark:bg-[#1A1C18] border border-[#B6C99C] rounded-xl text-xs md:text-sm font-bold text-[#728156] dark:text-[#B6C99C] cursor-pointer hover:bg-[#E8F4DC] dark:hover:bg-[#3A3D36] transition-all shadow-sm"
                 >
                   Upload Local Source
                 </label>
@@ -393,18 +386,18 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
 
             {activeTab === 'voice' && (
               <div className="flex flex-col items-center justify-center gap-6 py-4 min-h-[176px]">
-                <div className={`w-32 h-32 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500/10 scale-105' : 'bg-[#E8F4DC] dark:bg-[#1A1C18]'}`}>
+                <div className={`w-28 h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500/10 scale-105' : 'bg-[#E8F4DC] dark:bg-[#1A1C18]'}`}>
                   <button 
                     onClick={isRecording ? stopRecording : startRecording}
                     disabled={isAnalyzing}
-                    className={`w-20 h-20 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 border-4 border-white dark:border-[#2A2D26] ${
+                    className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 border-4 border-white dark:border-[#2A2D26] ${
                       isRecording ? 'bg-red-500 animate-pulse' : 'bg-[#728156] dark:bg-[#B6C99C]'
                     } disabled:opacity-50`}
                   >
                     {isRecording ? (
-                      <div className="w-8 h-8 bg-white rounded-md" />
+                      <div className="w-6 h-6 md:w-8 md:h-8 bg-white rounded-md" />
                     ) : (
-                      <svg className="w-10 h-10 text-white dark:text-[#1A1C18]" fill="currentColor" viewBox="0 0 24 24">
+                      <svg className="w-8 h-8 md:w-10 md:h-10 text-white dark:text-[#1A1C18]" fill="currentColor" viewBox="0 0 24 24">
                         <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
                         <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
                       </svg>
@@ -412,21 +405,20 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                   </button>
                 </div>
                 <div className="text-center w-full px-4">
-                  <p className={`font-bold transition-colors ${isRecording ? 'text-red-500' : 'text-[#728156] dark:text-[#B6C99C]'}`}>
+                  <p className={`font-bold transition-colors text-xs md:text-base ${isRecording ? 'text-red-500' : 'text-[#728156] dark:text-[#B6C99C]'}`}>
                     {isRecording ? `RECOGNIZING SIGNAL: ${recordingTime}s` : 'READY FOR VOICE DECRYPTION'}
                   </p>
                   
-                  {/* Live Transcription Box */}
                   {isRecording && (
-                    <div className="mt-4 p-4 bg-[#E8F4DC]/30 dark:bg-[#1A1C18]/30 rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2 max-w-lg mx-auto overflow-hidden">
+                    <div className="mt-4 p-4 bg-[#E8F4DC]/30 dark:bg-[#1A1C18]/30 rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2 max-w-lg mx-auto">
                       <p className="text-[9px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mb-1 text-left">Live Decryption Stream</p>
-                      <p className="text-sm text-[#728156] dark:text-[#B6C99C] italic font-medium text-left line-clamp-3">
+                      <p className="text-xs md:text-sm text-[#728156] dark:text-[#B6C99C] italic font-medium text-left line-clamp-3">
                         {liveTranscript || "Listening for vectors..."}
                       </p>
                     </div>
                   )}
 
-                  <p className="text-[10px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mt-1">
+                  <p className="text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mt-1">
                     {isRecording ? 'Click to Resolve Signal' : 'Initiate Audio Intelligence Vector'}
                   </p>
                 </div>
@@ -436,33 +428,33 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
         </div>
 
         <div className="space-y-6">
-          <div className="bg-white dark:bg-[#2A2D26] p-8 rounded-3xl shadow-sm border border-[#B6C99C]/20 h-full flex flex-col justify-between transition-colors">
-            <h3 className="text-xl font-bold text-[#728156] dark:text-[#B6C99C] mb-4">Matrix Stats</h3>
+          <div className="bg-white dark:bg-[#2A2D26] p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm border border-[#B6C99C]/20 h-full flex flex-col justify-between transition-colors">
+            <h3 className="text-lg md:text-xl font-bold text-[#728156] dark:text-[#B6C99C] mb-4">Matrix Stats</h3>
             
             {results.length > 0 && (
               <div className="space-y-3">
-                <div className="p-4 bg-[#CFE1BB]/10 dark:bg-[#3A3D36]/20 rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2">
-                  <p className="text-[10px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mb-1">Latest Vector</p>
+                <div className="p-4 bg-[#CFE1BB]/10 dark:bg-[#3A3D36]/20 rounded-xl md:rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2">
+                  <p className="text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mb-1">Latest Vector</p>
                   <div className="flex items-center justify-between">
-                    <span className={`text-lg font-black tracking-tight ${
+                    <span className={`text-base md:text-lg font-black tracking-tight ${
                       results[0].sentiment === 'POSITIVE' ? 'text-[#728156] dark:text-[#B6C99C]' :
                       results[0].sentiment === 'NEGATIVE' ? 'text-red-600 dark:text-red-400' : 'text-gray-600 dark:text-gray-400'
                     }`}>
                       {results[0].sentiment}
                     </span>
-                    <span className="text-[10px] font-bold text-[#88976C] dark:text-[#B6C99C] tabular-nums bg-white dark:bg-[#1A1C18] px-2 py-0.5 rounded-md border border-[#B6C99C]/20 shadow-sm transition-colors">
+                    <span className="text-[9px] md:text-[10px] font-bold text-[#88976C] dark:text-[#B6C99C] bg-white dark:bg-[#1A1C18] px-2 py-0.5 rounded-md border border-[#B6C99C]/20 shadow-sm transition-colors">
                       {(results[0].confidence * 100).toFixed(0)}% FDLTY
                     </span>
                   </div>
                 </div>
 
                 {latestAffirmation && (
-                  <div className="p-4 bg-camden-light/40 dark:bg-camden-olive/20 rounded-2xl border border-camden-sage/30 animate-in slide-in-from-top-1">
+                  <div className="p-4 bg-camden-light/40 dark:bg-camden-olive/20 rounded-xl md:rounded-2xl border border-camden-sage/30 animate-in slide-in-from-top-1">
                     <div className="flex items-center gap-2 mb-1">
-                      <span className="text-sm">✨</span>
-                      <p className="text-[9px] font-black text-camden-olive dark:text-camden-sage uppercase tracking-widest">Matrix Affirmation</p>
+                      <span className="text-xs">✨</span>
+                      <p className="text-[8px] md:text-[9px] font-black text-camden-olive dark:text-camden-sage uppercase tracking-widest">Matrix Affirmation</p>
                     </div>
-                    <p className="text-xs italic font-semibold text-camden-olive dark:text-camden-sage leading-snug">
+                    <p className="text-[10px] md:text-xs italic font-semibold text-camden-olive dark:text-camden-sage leading-snug">
                       "{latestAffirmation}"
                     </p>
                   </div>
@@ -470,16 +462,16 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
               </div>
             )}
 
-            <div className="grid grid-cols-2 gap-4 flex-grow my-6">
-              <div className="p-4 bg-[#E8F4DC] dark:bg-[#1A1C18] rounded-2xl flex flex-col justify-center transition-colors">
-                <div className="text-[#728156] dark:text-[#B6C99C] text-3xl font-black">{results.length}</div>
-                <div className="text-[10px] text-[#88976C] dark:text-[#B6C99C]/60 font-bold uppercase tracking-widest mt-1">Decoded</div>
+            <div className="grid grid-cols-2 gap-3 md:gap-4 flex-grow my-6">
+              <div className="p-4 bg-[#E8F4DC] dark:bg-[#1A1C18] rounded-xl md:rounded-2xl flex flex-col justify-center transition-colors">
+                <div className="text-[#728156] dark:text-[#B6C99C] text-2xl md:text-3xl font-black">{results.length}</div>
+                <div className="text-[9px] md:text-[10px] text-[#88976C] dark:text-[#B6C99C]/60 font-bold uppercase tracking-widest mt-1">Decoded</div>
               </div>
-              <div className="p-4 bg-[#CFE1BB]/30 dark:bg-[#3A3D36]/30 rounded-2xl flex flex-col justify-center transition-colors">
-                <div className="text-[#88976C] dark:text-[#CFE1BB] text-3xl font-black">
+              <div className="p-4 bg-[#CFE1BB]/30 dark:bg-[#3A3D36]/30 rounded-xl md:rounded-2xl flex flex-col justify-center transition-colors">
+                <div className="text-[#88976C] dark:text-[#CFE1BB] text-2xl md:text-3xl font-black">
                   {results.length > 0 ? ((results.filter(r => r.sentiment === 'POSITIVE').length / results.length) * 100).toFixed(0) : 0}%
                 </div>
-                <div className="text-[10px] text-[#728156] dark:text-[#B6C99C] font-bold uppercase tracking-widest mt-1">Positive</div>
+                <div className="text-[9px] md:text-[10px] text-[#728156] dark:text-[#B6C99C] font-bold uppercase tracking-widest mt-1">Positive</div>
               </div>
             </div>
             
@@ -488,14 +480,14 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                 <button 
                   onClick={clearResults}
                   disabled={results.length === 0}
-                  className="px-2 py-2.5 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-xl text-xs font-bold text-red-600 dark:text-red-400 disabled:opacity-50 transition-colors"
+                  className="px-2 py-2.5 bg-red-50 dark:bg-red-900/10 hover:bg-red-100 dark:hover:bg-red-900/20 rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-red-600 dark:text-red-400 disabled:opacity-50 transition-colors"
                 >
                   Clear All
                 </button>
                 <button 
                   onClick={() => exportToPDF(results)}
                   disabled={results.length === 0}
-                  className="px-2 py-2.5 bg-[#728156] dark:bg-[#B6C99C] hover:bg-[#88976C] dark:hover:bg-[#CFE1BB] rounded-xl text-xs font-bold text-white dark:text-[#1A1C18] disabled:opacity-50 transition-colors shadow-sm"
+                  className="px-2 py-2.5 bg-[#728156] dark:bg-[#B6C99C] hover:bg-[#88976C] dark:hover:bg-[#CFE1BB] rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-white dark:text-[#1A1C18] disabled:opacity-50 transition-colors shadow-sm"
                 >
                   Export PDF
                 </button>
@@ -504,14 +496,14 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                 <button 
                   onClick={() => exportToJSON(results)}
                   disabled={results.length === 0}
-                  className="px-2 py-2.5 bg-[#E8F4DC] dark:bg-[#1A1C18] hover:bg-[#CFE1BB] dark:hover:bg-[#3A3D36] rounded-xl text-xs font-bold text-[#728156] dark:text-[#B6C99C] disabled:opacity-50 transition-colors border border-[#B6C99C]/20"
+                  className="px-2 py-2.5 bg-[#E8F4DC] dark:bg-[#1A1C18] hover:bg-[#CFE1BB] dark:hover:bg-[#3A3D36] rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-[#728156] dark:text-[#B6C99C] disabled:opacity-50 transition-colors border border-[#B6C99C]/20"
                 >
                   JSON
                 </button>
                 <button 
                   onClick={() => exportToCSV(results)}
                   disabled={results.length === 0}
-                  className="px-2 py-2.5 bg-[#E8F4DC] dark:bg-[#1A1C18] hover:bg-[#CFE1BB] dark:hover:bg-[#3A3D36] rounded-xl text-xs font-bold text-[#728156] dark:text-[#B6C99C] disabled:opacity-50 transition-colors border border-[#B6C99C]/20"
+                  className="px-2 py-2.5 bg-[#E8F4DC] dark:bg-[#1A1C18] hover:bg-[#CFE1BB] dark:hover:bg-[#3A3D36] rounded-lg md:rounded-xl text-[10px] md:text-xs font-bold text-[#728156] dark:text-[#B6C99C] disabled:opacity-50 transition-colors border border-[#B6C99C]/20"
                 >
                   CSV
                 </button>
@@ -523,20 +515,20 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
 
       {/* Visualizations Section */}
       {results.length > 0 && (
-        <section className="grid grid-cols-1 md:grid-cols-2 gap-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
-          <div className="bg-white dark:bg-[#2A2D26] p-8 rounded-3xl shadow-sm border border-[#B6C99C]/20 transition-colors">
-            <h3 className="text-xl font-bold text-[#728156] dark:text-[#B6C99C] mb-6 tracking-tight">Emotional Spectrum Distribution</h3>
-            <div className="h-64">
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8 animate-in fade-in slide-in-from-bottom-10 duration-700">
+          <div className="bg-white dark:bg-[#2A2D26] p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm border border-[#B6C99C]/20 transition-colors">
+            <h3 className="text-lg md:text-xl font-bold text-[#728156] dark:text-[#B6C99C] mb-6 tracking-tight">Emotional Spectrum</h3>
+            <div className="h-48 md:h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={sentimentData}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#3A3D36' : '#E8F4DC'} />
-                  <XAxis dataKey="name" stroke={isDarkMode ? '#B6C99C' : '#88976C'} tick={{fontSize: 12}} />
-                  <YAxis stroke={isDarkMode ? '#B6C99C' : '#88976C'} tick={{fontSize: 12}} />
+                  <XAxis dataKey="name" stroke={isDarkMode ? '#B6C99C' : '#88976C'} tick={{fontSize: 10}} />
+                  <YAxis stroke={isDarkMode ? '#B6C99C' : '#88976C'} tick={{fontSize: 10}} />
                   <Tooltip 
                     cursor={{fill: isDarkMode ? '#1A1C18' : '#E8F4DC'}} 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', backgroundColor: isDarkMode ? '#1A1C18' : '#FFF', color: isDarkMode ? '#FFF' : '#000'}} 
+                    contentStyle={{borderRadius: '12px', border: 'none', fontSize: '12px', backgroundColor: isDarkMode ? '#1A1C18' : '#FFF', color: isDarkMode ? '#FFF' : '#000'}} 
                   />
-                  <Bar dataKey="value" radius={[10, 10, 0, 0]}>
+                  <Bar dataKey="value" radius={[6, 6, 0, 0]}>
                     {sentimentData.map((entry, index) => (
                       <Cell key={`cell-${index}`} fill={COLORS[entry.name.toUpperCase() as Sentiment]} />
                     ))}
@@ -546,16 +538,16 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
             </div>
           </div>
 
-          <div className="bg-white dark:bg-[#2A2D26] p-8 rounded-3xl shadow-sm border border-[#B6C99C]/20 transition-colors">
-            <h3 className="text-xl font-bold text-[#728156] dark:text-[#B6C99C] mb-6 tracking-tight">Intelligence Breakdown</h3>
-            <div className="h-64">
+          <div className="bg-white dark:bg-[#2A2D26] p-6 md:p-8 rounded-2xl md:rounded-3xl shadow-sm border border-[#B6C99C]/20 transition-colors">
+            <h3 className="text-lg md:text-xl font-bold text-[#728156] dark:text-[#B6C99C] mb-6 tracking-tight">Intelligence Breakdown</h3>
+            <div className="h-48 md:h-64">
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
                   <Pie
                     data={sentimentData}
-                    innerRadius={65}
-                    outerRadius={85}
-                    paddingAngle={10}
+                    innerRadius="60%"
+                    outerRadius="80%"
+                    paddingAngle={8}
                     dataKey="value"
                     animationDuration={1500}
                   >
@@ -564,7 +556,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                     ))}
                   </Pie>
                   <Tooltip 
-                    contentStyle={{borderRadius: '16px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05)', backgroundColor: isDarkMode ? '#1A1C18' : '#FFF', color: isDarkMode ? '#FFF' : '#000'}} 
+                    contentStyle={{borderRadius: '12px', border: 'none', fontSize: '12px', backgroundColor: isDarkMode ? '#1A1C18' : '#FFF', color: isDarkMode ? '#FFF' : '#000'}} 
                   />
                 </PieChart>
               </ResponsiveContainer>
@@ -574,37 +566,37 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
       )}
 
       {/* Results Table */}
-      <section className="bg-white dark:bg-[#2A2D26] rounded-3xl shadow-sm border border-[#B6C99C]/20 overflow-hidden transition-colors">
-        <div className="p-8 border-b border-[#E8F4DC] dark:border-[#3A3D36] flex justify-between items-center bg-gray-50/20 dark:bg-[#1A1C18]/30 transition-colors">
-          <h3 className="text-xl font-bold text-[#728156] dark:text-[#B6C99C]">Layered Decryption Table</h3>
-          <div className="text-xs font-bold text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest">{results.length} Nodes Resolved</div>
+      <section className="bg-white dark:bg-[#2A2D26] rounded-2xl md:rounded-3xl shadow-sm border border-[#B6C99C]/20 overflow-hidden transition-colors">
+        <div className="p-5 md:p-8 border-b border-[#E8F4DC] dark:border-[#3A3D36] flex justify-between items-center bg-gray-50/20 dark:bg-[#1A1C18]/30 transition-colors">
+          <h3 className="text-lg md:text-xl font-bold text-[#728156] dark:text-[#B6C99C]">Decryption Table</h3>
+          <div className="text-[10px] font-bold text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest">{results.length} Nodes</div>
         </div>
         {results.length === 0 ? (
-          <div className="p-24 text-center space-y-4">
-            <div className="w-20 h-20 bg-[#E8F4DC] dark:bg-[#1A1C18] rounded-full flex items-center justify-center mx-auto text-[#88976C] dark:text-[#B6C99C] transition-colors">
-              <svg className="w-10 h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+          <div className="p-16 md:p-24 text-center space-y-4">
+            <div className="w-16 h-16 md:w-20 md:h-20 bg-[#E8F4DC] dark:bg-[#1A1C18] rounded-full flex items-center justify-center mx-auto text-[#88976C] dark:text-[#B6C99C] transition-colors">
+              <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 002-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
             </div>
-            <p className="text-[#88976C] dark:text-[#B6C99C]/60 font-semibold tracking-wide">Awaiting Data Injection...</p>
+            <p className="text-[#88976C] dark:text-[#B6C99C]/60 font-semibold tracking-wide text-sm md:text-base">Awaiting Data Injection...</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left">
+            <table className="w-full text-left min-w-[600px]">
               <thead className="bg-[#E8F4DC]/30 dark:bg-[#1A1C18]/50 transition-colors">
                 <tr>
-                  <th className="px-8 py-5 text-[10px] font-black text-[#88976C] dark:text-[#B6C99C] uppercase tracking-wider">Target Node</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-[#88976C] dark:text-[#B6C99C] uppercase tracking-wider">Vector</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-[#88976C] dark:text-[#B6C99C] uppercase tracking-wider">Fidelity</th>
+                  <th className="px-6 md:px-8 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C] uppercase tracking-wider">Target Node</th>
+                  <th className="px-6 md:px-8 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C] uppercase tracking-wider">Vector</th>
+                  <th className="px-6 md:px-8 py-4 md:py-5 text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C] uppercase tracking-wider">Fidelity</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#E8F4DC] dark:divide-[#3A3D36] transition-colors">
                 {results.map((res) => (
-                  <tr key={res.id} className="hover:bg-[#E8F4DC]/10 dark:hover:bg-[#3A3D36]/20 transition-colors group">
-                    <td className="px-8 py-6">
-                      <p className="text-sm text-gray-700 dark:text-gray-200 font-semibold max-w-md line-clamp-2">{res.text}</p>
-                      <p className="text-[10px] text-[#88976C] dark:text-[#B6C99C]/60 mt-1">{res.explanation}</p>
+                  <tr key={res.id} className="hover:bg-[#E8F4DC]/10 dark:hover:bg-[#3A3D36]/20 transition-colors">
+                    <td className="px-6 md:px-8 py-5 md:py-6">
+                      <p className="text-xs md:text-sm text-gray-700 dark:text-gray-200 font-semibold max-w-xs md:max-w-md line-clamp-2">{res.text}</p>
+                      <p className="text-[9px] md:text-[10px] text-[#88976C] dark:text-[#B6C99C]/60 mt-1 line-clamp-1">{res.explanation}</p>
                     </td>
-                    <td className="px-8 py-6">
-                      <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest border transition-all shadow-sm ${
+                    <td className="px-6 md:px-8 py-5 md:py-6">
+                      <span className={`px-3 py-1 rounded-full text-[9px] md:text-[10px] font-black uppercase tracking-widest border transition-all ${
                         res.sentiment === 'POSITIVE' ? 'bg-[#E8F4DC] dark:bg-[#728156]/20 border-[#B6C99C] text-[#728156] dark:text-[#B6C99C]' :
                         res.sentiment === 'NEGATIVE' ? 'bg-red-50 dark:bg-red-900/10 border-red-200 dark:border-red-900/40 text-red-800 dark:text-red-400' :
                         'bg-gray-100 dark:bg-gray-800 border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400'
@@ -612,15 +604,15 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
                         {res.sentiment}
                       </span>
                     </td>
-                    <td className="px-8 py-6">
-                      <div className="flex items-center gap-3">
-                        <div className="w-16 bg-[#E8F4DC] dark:bg-[#1A1C18] h-2 rounded-full overflow-hidden transition-colors">
+                    <td className="px-6 md:px-8 py-5 md:py-6">
+                      <div className="flex items-center gap-2 md:gap-3">
+                        <div className="w-12 md:w-16 bg-[#E8F4DC] dark:bg-[#1A1C18] h-1.5 md:h-2 rounded-full overflow-hidden transition-colors">
                           <div 
-                            className={`h-full rounded-full bg-[#728156] dark:bg-[#B6C99C]`}
+                            className="h-full rounded-full bg-[#728156] dark:bg-[#B6C99C]"
                             style={{ width: `${res.confidence * 100}%` }}
                           />
                         </div>
-                        <span className="text-xs font-bold text-[#88976C] dark:text-[#B6C99C] tabular-nums">{(res.confidence * 100).toFixed(0)}%</span>
+                        <span className="text-[10px] md:text-xs font-bold text-[#88976C] dark:text-[#B6C99C] tabular-nums">{(res.confidence * 100).toFixed(0)}%</span>
                       </div>
                     </td>
                   </tr>
