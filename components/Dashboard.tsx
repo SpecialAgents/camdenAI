@@ -12,11 +12,15 @@ interface DashboardProps {
   isDarkMode: boolean;
 }
 
+type NotificationType = 'success' | 'error' | 'info';
+
 const COLORS = {
   [Sentiment.POSITIVE]: '#88976C', // Medium Olive
   [Sentiment.NEUTRAL]: '#B6C99C',  // Light Sage
   [Sentiment.NEGATIVE]: '#728156', // Dark Olive
 };
+
+const MAX_CREDITS = 15;
 
 const AFFIRMATIONS = {
   [Sentiment.POSITIVE]: [
@@ -72,6 +76,8 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [liveTranscript, setLiveTranscript] = useState('');
+  const [creditsRemaining, setCreditsRemaining] = useState(MAX_CREDITS);
+  const [notification, setNotification] = useState<{ message: string; type: NotificationType } | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,7 +96,22 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
     return () => clearInterval(interval);
   }, [isRecording]);
 
+  useEffect(() => {
+    if (notification) {
+      const timer = setTimeout(() => setNotification(null), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [notification]);
+
+  const showNotification = (message: string, type: NotificationType = 'info') => {
+    setNotification({ message, type });
+  };
+
   const startRecording = async () => {
+    if (creditsRemaining <= 0) {
+      showNotification("Intelligence Limit Reached. No credits remaining.", 'error');
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const recorder = new MediaRecorder(stream);
@@ -106,7 +127,10 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
               setLiveTranscript(prev => prev + message.serverContent!.inputTranscription!.text);
             }
           },
-          onerror: (e) => console.error("Transcription error:", e),
+          onerror: (e) => {
+            console.error("Transcription error:", e);
+            showNotification("Real-time transcription link interrupted.", 'error');
+          },
           onclose: () => console.log("Transcription session closed")
         },
         config: {
@@ -143,9 +167,10 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
       mediaRecorderRef.current = recorder;
       recorder.start();
       setIsRecording(true);
+      showNotification("Voice capture initialized.", 'info');
     } catch (err) {
       console.error("Microphone access denied", err);
-      alert("Microphone access is required for voice intelligence capture.");
+      showNotification("Microphone access required for voice intelligence.", 'error');
     }
   };
 
@@ -162,6 +187,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
         scriptProcessorRef.current.disconnect();
         scriptProcessorRef.current = null;
       }
+      showNotification("Signal resolved. Finalizing analysis...", 'info');
     }
   };
 
@@ -175,13 +201,16 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
   };
 
   const handleVoiceAnalysis = async (base64Audio: string, mimeType: string) => {
+    if (creditsRemaining <= 0) return;
     setIsAnalyzing(true);
     setRetryStatus("Analyzing Voice Vector...");
     try {
       const result = await analyzeAudioSentiment(base64Audio, mimeType);
       setResults(prev => [result, ...prev]);
+      setCreditsRemaining(prev => Math.max(0, prev - 1));
+      showNotification("Audio intelligence decrypted successfully.", 'success');
     } catch (error: any) {
-      alert(`Voice Matrix failure: ${error.message || "Failed to resolve audio signals."}`);
+      showNotification(`Voice Matrix failure: ${error.message || "Unknown error."}`, 'error');
     } finally {
       setIsAnalyzing(false);
       setRetryStatus(null);
@@ -189,22 +218,31 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
   };
 
   const processTextBatch = async (text: string) => {
+    if (creditsRemaining <= 0) return;
     const lines = text.split('\n').map(l => l.trim()).filter(l => l.length > 2);
     if (lines.length === 0) {
-      alert("No valid text found in source.");
+      showNotification("No valid text found in source file.", 'error');
+      return;
+    }
+
+    const countToAnalyze = Math.min(lines.length, creditsRemaining, 50);
+    if (countToAnalyze === 0) {
+      showNotification("Credit limit reached for this session.", 'error');
       return;
     }
 
     setIsAnalyzing(true);
     setRetryStatus(null);
     try {
-      const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50)); 
+      const batchResults = await batchAnalyzeSentiment(lines.slice(0, countToAnalyze)); 
       setResults(prev => [...batchResults, ...prev]);
+      setCreditsRemaining(prev => Math.max(0, prev - batchResults.length));
+      showNotification(`Batch processed: ${batchResults.length} vectors resolved.`, 'success');
     } catch (error: any) {
       const isQuota = error?.message?.includes('429') || error?.message?.includes('quota');
-      alert(isQuota 
-        ? "Google API Quota Limit Reached. Please wait a minute before trying again." 
-        : `Analysis failure: ${error.message || "Check your API key and connection."}`
+      showNotification(isQuota 
+        ? "API Quota Limit Reached. Retrying after cool-down." 
+        : `Batch Analysis failure: ${error.message || "Check connectivity."}`, 'error'
       );
     } finally {
       setIsAnalyzing(false);
@@ -212,25 +250,35 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
   };
 
   const handleSingleAnalysis = async () => {
-    if (!inputText.trim()) return;
+    if (!inputText.trim() || creditsRemaining <= 0) return;
     const lines = inputText.split('\n').map(l => l.trim()).filter(l => l.length > 0);
     
+    const countToAnalyze = lines.length > 1 ? lines.length : 1;
+    if (countToAnalyze > creditsRemaining) {
+      showNotification(`Insufficient credits. Only ${creditsRemaining} units remaining.`, 'error');
+      return;
+    }
+
     setIsAnalyzing(true);
     setRetryStatus(null);
     try {
       if (lines.length > 1) {
-        const batchResults = await batchAnalyzeSentiment(lines.slice(0, 50));
+        const batchResults = await batchAnalyzeSentiment(lines.slice(0, Math.min(countToAnalyze, 50)));
         setResults(prev => [...batchResults, ...prev]);
+        setCreditsRemaining(prev => Math.max(0, prev - batchResults.length));
+        showNotification(`Batch of ${batchResults.length} items analyzed.`, 'success');
       } else {
         const result = await analyzeSentiment(inputText);
         setResults(prev => [result, ...prev]);
+        setCreditsRemaining(prev => Math.max(0, prev - 1));
+        showNotification("Intelligence node resolved.", 'success');
       }
       setInputText('');
     } catch (error: any) {
       const isQuota = error?.message?.includes('429') || error?.message?.includes('quota');
-      alert(isQuota 
-        ? "Google API Quota Limit Reached. This usually resets every minute." 
-        : `Analysis failure: ${error.message || "Failed to analyze."}`
+      showNotification(isQuota 
+        ? "API Limit Reached. Decryption paused briefly." 
+        : `Analysis failure: ${error.message || "Unknown error."}`, 'error'
       );
     } finally {
       setIsAnalyzing(false);
@@ -246,6 +294,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
       setActiveTab('batch');
     };
     reader.readAsText(file);
+    showNotification(`Reading file: ${file.name}`, 'info');
   };
 
   const onDrop = (e: React.DragEvent) => {
@@ -272,6 +321,7 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
   const clearResults = () => {
     if (window.confirm("Are you sure you want to clear all analysis data?")) {
       setResults([]);
+      showNotification("Intelligence cache cleared.", 'info');
     }
   };
 
@@ -291,6 +341,28 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
 
   return (
     <div className="px-4 py-6 md:p-10 max-w-7xl mx-auto space-y-8 md:space-y-10 animate-in slide-in-from-bottom duration-500 relative transition-colors">
+      
+      {/* Custom Notification Pop-up */}
+      {notification && (
+        <div className={`fixed top-24 right-4 md:right-10 z-[110] px-6 py-4 rounded-2xl shadow-2xl border flex items-center gap-4 animate-in slide-in-from-right-10 duration-300 backdrop-blur-md ${
+          notification.type === 'success' ? 'bg-[#E8F4DC]/90 border-[#B6C99C] text-[#728156]' :
+          notification.type === 'error' ? 'bg-red-50/90 border-red-200 text-red-600' : 'bg-white/90 dark:bg-[#1A1C18]/90 border-gray-200 dark:border-gray-800 text-gray-700 dark:text-gray-200'
+        }`}>
+          <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+            notification.type === 'success' ? 'bg-[#728156] text-white' :
+            notification.type === 'error' ? 'bg-red-600 text-white' : 'bg-gray-400 text-white'
+          }`}>
+            {notification.type === 'success' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"/></svg>}
+            {notification.type === 'error' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12"/></svg>}
+            {notification.type === 'info' && <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>}
+          </div>
+          <p className="text-sm font-bold tracking-tight">{notification.message}</p>
+          <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-60 transition-opacity">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12"/></svg>
+          </button>
+        </div>
+      )}
+
       {isAnalyzing && (
         <div className="fixed inset-0 z-[100] flex flex-col items-center justify-center bg-[#E8F4DC]/80 dark:bg-[#1A1C18]/80 backdrop-blur-md transition-all animate-in fade-in">
           <div className="w-16 h-16 md:w-24 md:h-24 border-4 border-[#CFE1BB] border-t-[#728156] rounded-full animate-spin mb-6"></div>
@@ -308,7 +380,12 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
         <div className="lg:col-span-2 space-y-6">
           <div className="bg-white dark:bg-[#2A2D26] p-5 md:p-8 rounded-2xl md:rounded-3xl shadow-sm border border-[#B6C99C]/20 flex flex-col gap-4 transition-colors">
             <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-xl md:text-2xl font-bold text-[#728156] dark:text-[#B6C99C]">Intelligence Console</h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl md:text-2xl font-bold text-[#728156] dark:text-[#B6C99C]">Intelligence Console</h2>
+                <div className={`px-2 py-0.5 rounded-full border text-[9px] font-black tabular-nums transition-colors ${creditsRemaining > 0 ? 'bg-camden-light dark:bg-camden-dark border-camden-sage/30 text-camden-olive dark:text-camden-sage' : 'bg-red-50 dark:bg-red-900/20 border-red-200 dark:border-red-900/40 text-red-600 dark:text-red-400'}`}>
+                  {creditsRemaining} / {MAX_CREDITS}
+                </div>
+              </div>
               <div className="flex w-full sm:w-auto bg-[#E8F4DC] dark:bg-[#1A1C18] p-1 rounded-xl transition-colors">
                 <button 
                   onClick={() => setActiveTab('individual')}
@@ -331,98 +408,118 @@ const Dashboard: React.FC<DashboardProps> = ({ results, setResults, isDarkMode }
               </div>
             </div>
 
-            {activeTab === 'individual' && (
-              <div className="space-y-4">
-                <textarea 
-                  className="w-full h-32 md:h-44 p-4 md:p-5 rounded-xl md:rounded-2xl border-2 border-[#E8F4DC] dark:border-[#3A3D36] bg-transparent focus:border-[#B6C99C] outline-none transition-all resize-none text-gray-700 dark:text-gray-100 leading-relaxed font-medium text-sm md:text-base"
-                  placeholder="Paste multi-line text source here..."
-                  value={inputText}
-                  onChange={(e) => setInputText(e.target.value)}
-                />
+            {creditsRemaining <= 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 md:py-16 text-center space-y-4 animate-in fade-in zoom-in duration-500">
+                <div className="w-16 h-16 md:w-20 md:h-20 bg-red-50 dark:bg-red-900/10 rounded-full flex items-center justify-center text-red-600 dark:text-red-400">
+                  <svg className="w-8 h-8 md:w-10 md:h-10" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl md:text-2xl font-black text-red-600 dark:text-red-400 tracking-tight">Intelligence Quota Exhausted</h3>
+                  <p className="text-xs md:text-sm text-gray-500 dark:text-gray-400 max-w-sm mx-auto">You have completed your 15 allocated analysis units for this session. Please reset your environment to continue decryption.</p>
+                </div>
                 <button 
-                  onClick={handleSingleAnalysis}
-                  disabled={isAnalyzing || !inputText.trim()}
-                  className="w-full py-3 md:py-4 bg-[#728156] dark:bg-[#B6C99C] hover:bg-[#88976C] dark:hover:bg-[#CFE1BB] disabled:bg-[#B6C99C] dark:disabled:bg-[#3A3D36] text-white dark:text-[#1A1C18] rounded-xl md:rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] text-sm md:text-base"
+                  onClick={() => window.location.reload()} 
+                  className="px-8 py-3 bg-[#728156] dark:bg-[#B6C99C] text-white dark:text-[#1A1C18] rounded-xl font-bold shadow-lg active:scale-95 transition-all text-xs"
                 >
-                  Initialize Analysis
+                  Reset Analysis Credits
                 </button>
               </div>
-            )}
+            ) : (
+              <>
+                {activeTab === 'individual' && (
+                  <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                    <textarea 
+                      className="w-full h-32 md:h-44 p-4 md:p-5 rounded-xl md:rounded-2xl border-2 border-[#E8F4DC] dark:border-[#3A3D36] bg-transparent focus:border-[#B6C99C] outline-none transition-all resize-none text-gray-700 dark:text-gray-100 leading-relaxed font-medium text-sm md:text-base"
+                      placeholder="Paste multi-line text source here..."
+                      value={inputText}
+                      onChange={(e) => setInputText(e.target.value)}
+                    />
+                    <button 
+                      onClick={handleSingleAnalysis}
+                      disabled={isAnalyzing || !inputText.trim()}
+                      className="w-full py-3 md:py-4 bg-[#728156] dark:bg-[#B6C99C] hover:bg-[#88976C] dark:hover:bg-[#CFE1BB] disabled:bg-[#B6C99C] dark:disabled:bg-[#3A3D36] text-white dark:text-[#1A1C18] rounded-xl md:rounded-2xl font-bold transition-all flex items-center justify-center gap-2 shadow-lg active:scale-[0.99] text-sm md:text-base"
+                    >
+                      Initialize Analysis
+                    </button>
+                  </div>
+                )}
 
-            {activeTab === 'batch' && (
-              <div 
-                className={`h-44 md:h-52 border-2 border-dashed rounded-2xl md:rounded-3xl flex flex-col items-center justify-center gap-4 transition-all p-4 ${
-                  isDragging ? 'border-[#728156] bg-[#CFE1BB]/20' : 'border-[#B6C99C] dark:border-[#3A3D36] bg-[#E8F4DC]/10 dark:bg-[#1A1C18]/30'
-                }`}
-                onDragOver={onDragOver}
-                onDragLeave={onDragLeave}
-                onDrop={onDrop}
-              >
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-white dark:bg-[#3A3D36] rounded-full shadow-sm flex items-center justify-center text-[#728156] dark:text-[#B6C99C] transition-colors">
-                  <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
-                </div>
-                <div className="text-center">
-                  <p className="font-bold text-sm md:text-base text-[#728156] dark:text-[#B6C99C]">
-                    {isDragging ? 'Drop File Now' : 'Drag Source File'}
-                  </p>
-                  <p className="text-[10px] md:text-xs text-[#88976C] dark:text-[#B6C99C]/60 mt-1">Supports .csv, .txt (Max 50 nodes)</p>
-                </div>
-                <input 
-                  type="file" 
-                  accept=".csv,.txt" 
-                  className="hidden" 
-                  id="batch-upload"
-                  ref={fileInputRef}
-                  onChange={handleFileUpload}
-                />
-                <label 
-                  htmlFor="batch-upload" 
-                  className="px-6 md:px-8 py-2 md:py-2.5 bg-white dark:bg-[#1A1C18] border border-[#B6C99C] rounded-xl text-xs md:text-sm font-bold text-[#728156] dark:text-[#B6C99C] cursor-pointer hover:bg-[#E8F4DC] dark:hover:bg-[#3A3D36] transition-all shadow-sm"
-                >
-                  Upload Local Source
-                </label>
-              </div>
-            )}
-
-            {activeTab === 'voice' && (
-              <div className="flex flex-col items-center justify-center gap-6 py-4 min-h-[176px]">
-                <div className={`w-28 h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500/10 scale-105' : 'bg-[#E8F4DC] dark:bg-[#1A1C18]'}`}>
-                  <button 
-                    onClick={isRecording ? stopRecording : startRecording}
-                    disabled={isAnalyzing}
-                    className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 border-4 border-white dark:border-[#2A2D26] ${
-                      isRecording ? 'bg-red-500 animate-pulse' : 'bg-[#728156] dark:bg-[#B6C99C]'
-                    } disabled:opacity-50`}
+                {activeTab === 'batch' && (
+                  <div 
+                    className={`h-44 md:h-52 border-2 border-dashed rounded-2xl md:rounded-3xl flex flex-col items-center justify-center gap-4 transition-all p-4 animate-in fade-in slide-in-from-top-2 duration-300 ${
+                      isDragging ? 'border-[#728156] bg-[#CFE1BB]/20' : 'border-[#B6C99C] dark:border-[#3A3D36] bg-[#E8F4DC]/10 dark:bg-[#1A1C18]/30'
+                    }`}
+                    onDragOver={onDragOver}
+                    onDragLeave={onDragLeave}
+                    onDrop={onDrop}
                   >
-                    {isRecording ? (
-                      <div className="w-6 h-6 md:w-8 md:h-8 bg-white rounded-md" />
-                    ) : (
-                      <svg className="w-8 h-8 md:w-10 md:h-10 text-white dark:text-[#1A1C18]" fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
-                        <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
-                      </svg>
-                    )}
-                  </button>
-                </div>
-                <div className="text-center w-full px-4">
-                  <p className={`font-bold transition-colors text-xs md:text-base ${isRecording ? 'text-red-500' : 'text-[#728156] dark:text-[#B6C99C]'}`}>
-                    {isRecording ? `RECOGNIZING SIGNAL: ${recordingTime}s` : 'READY FOR VOICE DECRYPTION'}
-                  </p>
-                  
-                  {isRecording && (
-                    <div className="mt-4 p-4 bg-[#E8F4DC]/30 dark:bg-[#1A1C18]/30 rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2 max-w-lg mx-auto">
-                      <p className="text-[9px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mb-1 text-left">Live Decryption Stream</p>
-                      <p className="text-xs md:text-sm text-[#728156] dark:text-[#B6C99C] italic font-medium text-left line-clamp-3">
-                        {liveTranscript || "Listening for vectors..."}
+                    <div className="w-12 h-12 md:w-14 md:h-14 bg-white dark:bg-[#3A3D36] rounded-full shadow-sm flex items-center justify-center text-[#728156] dark:text-[#B6C99C] transition-colors">
+                      <svg className="w-6 h-6 md:w-8 md:h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    </div>
+                    <div className="text-center">
+                      <p className="font-bold text-sm md:text-base text-[#728156] dark:text-[#B6C99C]">
+                        {isDragging ? 'Drop File Now' : 'Drag Source File'}
+                      </p>
+                      <p className="text-[10px] md:text-xs text-[#88976C] dark:text-[#B6C99C]/60 mt-1">Supports .csv, .txt (Limit: {creditsRemaining} nodes)</p>
+                    </div>
+                    <input 
+                      type="file" 
+                      accept=".csv,.txt" 
+                      className="hidden" 
+                      id="batch-upload"
+                      ref={fileInputRef}
+                      onChange={handleFileUpload}
+                    />
+                    <label 
+                      htmlFor="batch-upload" 
+                      className="px-6 md:px-8 py-2 md:py-2.5 bg-white dark:bg-[#1A1C18] border border-[#B6C99C] rounded-xl text-xs md:text-sm font-bold text-[#728156] dark:text-[#B6C99C] cursor-pointer hover:bg-[#E8F4DC] dark:hover:bg-[#3A3D36] transition-all shadow-sm"
+                    >
+                      Upload Local Source
+                    </label>
+                  </div>
+                )}
+
+                {activeTab === 'voice' && (
+                  <div className="flex flex-col items-center justify-center gap-6 py-4 min-h-[176px] animate-in fade-in slide-in-from-top-2 duration-300">
+                    <div className={`w-28 h-28 md:w-32 md:h-32 rounded-full flex items-center justify-center transition-all ${isRecording ? 'bg-red-500/10 scale-105' : 'bg-[#E8F4DC] dark:bg-[#1A1C18]'}`}>
+                      <button 
+                        onClick={isRecording ? stopRecording : startRecording}
+                        disabled={isAnalyzing}
+                        className={`w-16 h-16 md:w-20 md:h-20 rounded-full flex items-center justify-center transition-all shadow-xl active:scale-95 border-4 border-white dark:border-[#2A2D26] ${
+                          isRecording ? 'bg-red-500 animate-pulse' : 'bg-[#728156] dark:bg-[#B6C99C]'
+                        } disabled:opacity-50`}
+                      >
+                        {isRecording ? (
+                          <div className="w-6 h-6 md:w-8 md:h-8 bg-white rounded-md" />
+                        ) : (
+                          <svg className="w-8 h-8 md:w-10 md:h-10 text-white dark:text-[#1A1C18]" fill="currentColor" viewBox="0 0 24 24">
+                            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                          </svg>
+                        )}
+                      </button>
+                    </div>
+                    <div className="text-center w-full px-4">
+                      <p className={`font-bold transition-colors text-xs md:text-base ${isRecording ? 'text-red-500' : 'text-[#728156] dark:text-[#B6C99C]'}`}>
+                        {isRecording ? `RECOGNIZING SIGNAL: ${recordingTime}s` : 'READY FOR VOICE DECRYPTION'}
+                      </p>
+                      
+                      {isRecording && (
+                        <div className="mt-4 p-4 bg-[#E8F4DC]/30 dark:bg-[#1A1C18]/30 rounded-2xl border border-[#B6C99C]/20 animate-in fade-in slide-in-from-top-2 max-w-lg mx-auto">
+                          <p className="text-[9px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mb-1 text-left">Live Decryption Stream</p>
+                          <p className="text-xs md:text-sm text-[#728156] dark:text-[#B6C99C] italic font-medium text-left line-clamp-3">
+                            {liveTranscript || "Listening for vectors..."}
+                          </p>
+                        </div>
+                      )}
+
+                      <p className="text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mt-1">
+                        {isRecording ? 'Click to Resolve Signal' : 'Initiate Audio Intelligence Vector'}
                       </p>
                     </div>
-                  )}
-
-                  <p className="text-[9px] md:text-[10px] font-black text-[#88976C] dark:text-[#B6C99C]/60 uppercase tracking-widest mt-1">
-                    {isRecording ? 'Click to Resolve Signal' : 'Initiate Audio Intelligence Vector'}
-                  </p>
-                </div>
-              </div>
+                  </div>
+                )}
+              </>
             )}
           </div>
         </div>
