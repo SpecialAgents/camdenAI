@@ -1,45 +1,49 @@
-
 # Camden Intelligence - Sentiment Analytics Dashboard
+## 1. Introduction
+Camden Intelligence is a multimodal sentiment analysis and emotional health monitoring platform powered by advanced natural language processing (NLP) and real-time audio transcription. It enables users to classify text and voice sentiment, decrypt emotional signals, extract keywords, and generate insightful visualizations with options for exporting results in multiple formats.
 
-Camden Intelligence is a state-of-the-art sentiment analysis system designed to transform raw text into actionable emotional intelligence. Leveraging the power of the Gemini 3 Flash API, it provides multi-class classification, driver extraction, and sophisticated data visualization.
+## 2. Tech Stack
+- Language: TypeScript – ensures type safety and maintainability.
+- Frontend Framework: React 19 – provides a responsive and interactive user interface.
+- Styling: Tailwind CSS – enables rapid UI development with utility-first styling.
+- AI Engine: Gemini 3 Flash & Gemini 2.5 Live – Flash delivers deep sentiment decryption, while Live enables instantaneous voice transcription.
+- Real-time Processing: PCM Audio Transcription – ensures fidelity in live voice capture.
+- Visuals: Reactive 3D Emojis – floating emojis dynamically shift animations based on emotional analysis.
+- Exporting Tools: jsPDF & AutoTable – support generation of multi-page PDF reports with tabular data and embedded charts.
 
-## 🚀 Key Features
+## 3. Core Features
+- Voice Intelligence: Real-time audio signal capture with live transcription.
+- 3D Reactive Interface: Floating emojis that adapt animations based on latest sentiment analysis.
+- Batch Matrix: High-speed processing of up to 50 intelligence nodes simultaneously.
+- Accuracy Tracking: Integrated validation tools and confusion matrices for performance monitoring.
+- Multi-Format Export: Export results in CSV, JSON, or PDF formats.
 
-- **High-Fidelity Analysis**: Classifies text into Positive, Negative, or Neutral with confidence scoring.
-- **Deep Insights**: Automatically extracts keywords and provides an AI-generated rationale for every analysis.
-- **Batch Processing**: Analyze multiple nodes simultaneously via CSV or TXT file uploads (optimized for 15+ entries).
-- **Interactive Visualizations**: Real-time sentiment distribution and volume breakdown charts.
-- **Accuracy Reporting**: Integrated performance monitoring with confusion matrices and comparative analysis.
-- **Multi-Format Export**: Export your data and insights as PDF, CSV, or JSON.
+## 4. User Guide
+Step 1: Data Injection
+- Paste text, upload CSV/TXT files, or record voice input.
+- Supported text length: 10–500 words per entry.
+Step 2: Real-time Transcription
+- Monitor live streams in the voice console with PCM 16kHz fidelity.
+Step 3: Resolve Signals
+- Initialize the AI to classify sentiment vectors.
+- Outputs include: sentiment label, explanation, and extracted keywords.
+Step 4: Insights & Exports
+- Analyze charts summarizing emotional health statistics.
+- Save results in CSV, JSON, or PDF formats.
 
-## 🛠️ Tech Stack
+## 5. Model Limitations
+- Confidence Threshold: Scores below 0.65 require manual review.
+- Optimal Text Length: Inputs between 10–500 words yield best performance.
+- Language Support: Primary support for English, with limited multi-lingual capabilities.
+- Contextual Challenges: Sarcasm, idiomatic expressions, and domain-specific vocabulary may reduce accuracy.
 
-- **Frontend**: React 19 (ESM based)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS (Custom Sage/Olive Matrix Theme)
-- **Intelligence Engine**: Google Gemini 3 Flash API
-- **Visuals**: Recharts
-- **Document Generation**: jsPDF & jsPDF-AutoTable
+## 6. Group Members
+- Nqobile Magwaza
+- Nqobile Ngwenya
+- Rivombo Ndhukwana
+- Khensani Manganye
+- Nthabiseng Mkhehlani
 
-## 📖 User Guide
+Built for precision and insight. © 2026 Camden Intelligence AI.
 
-### 1. Launching the Console
-Click the "Launch Camden Console" button from the landing page to access the main dashboard.
 
-### 2. Performing Analysis
-- **Direct Entry**: Paste your text source directly into the intelligence console.
-- **Batch Matrix**: Drag and drop a `.csv` or `.txt` file into the upload zone for rapid sequence analysis.
-
-### 3. Reviewing Insights
-Scroll through the "Layered Decryption Table" to see the vector (sentiment), fidelity (confidence), and reasoning behind each node.
-
-### 4. Exporting Reports
-Use the "Security Export" section to save your datasets. You can also generate comprehensive PDF reports for the Accuracy Matrix and Documentation sections.
-
-## 📊 Model Limitations
-- **Thresholds**: We recommend a confidence threshold of **0.65** for automated workflows.
-- **Context**: The model may struggle with extreme sarcasm or highly localized idioms.
-- **Length**: Optimal analysis is achieved with texts between 10 and 500 words.
-
----
-Built for precision and insight. © 2024 Camden Intelligence AI.
