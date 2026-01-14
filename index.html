@@ -9,10 +9,29 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        camden: {
+                            light: '#E8F4DC',
+                            dark: '#1A1C18',
+                            olive: '#728156',
+                            sage: '#B6C99C',
+                            medium: '#88976C'
+                        }
+                    }
+                }
+            }
+        }
+    </script>
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            background-color: #E8F4DC;
+            transition: background-color 0.5s ease;
+            overflow-x: hidden;
         }
         .gradient-bg {
             background: linear-gradient(135deg, #CFE1BB 0%, #98A77C 50%, #728156 100%);
@@ -22,12 +41,45 @@
             backdrop-filter: blur(12px);
             border: 1px solid rgba(255, 255, 255, 0.4);
         }
+        .dark .glass-card {
+            background: rgba(42, 45, 38, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
         @keyframes pulse-text {
             0%, 100% { opacity: 1; transform: scale(1); }
             50% { opacity: 0.7; transform: scale(0.98); }
         }
         .animate-pulse-text {
             animation: pulse-text 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+        }
+
+        /* 3D Emoji Floating Animations */
+        @keyframes float {
+          0% { transform: translateY(0) rotate(0deg) scale(1); }
+          50% { transform: translateY(-30px) rotate(15deg) scale(1.1); }
+          100% { transform: translateY(0) rotate(0deg) scale(1); }
+        }
+
+        .floating-emoji {
+          position: fixed;
+          pointer-events: none;
+          z-index: -1;
+          user-select: none;
+          animation: float 10s ease-in-out infinite;
+          /* Advanced 3D styling with multi-layered shadows */
+          text-shadow: 
+            2px 2px 0px rgba(0,0,0,0.05),
+            4px 4px 10px rgba(0,0,0,0.1),
+            -1px -1px 0px rgba(255,255,255,0.2);
+          font-size: 3rem;
+          opacity: 0.18;
+          transition: opacity 1.5s ease-in-out, filter 1s ease-in-out, transform 0.5s ease;
+          perspective: 1000px;
+        }
+
+        .dark .floating-emoji {
+          opacity: 0.1;
+          text-shadow: 0 0 15px rgba(255,255,255,0.1);
         }
     </style>
 <script type="importmap">
@@ -43,7 +95,7 @@
 </script>
 <link rel="stylesheet" href="/index.css">
 </head>
-<body>
+<body class="bg-camden-light dark:bg-camden-dark">
     <div id="root"></div>
 <script type="module" src="/index.tsx"></script>
 </body>

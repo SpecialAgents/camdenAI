@@ -1,5 +1,8 @@
+
 {
   "name": "Camden Intelligence",
   "description": "An interactive, AI-powered sentiment analysis dashboard for multi-class classification, batch processing, and detailed emotional tone insights with robust export capabilities.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [
+    "microphone"
+  ]
 }
